@@ -16,8 +16,9 @@ const Groq = require("groq-sdk");
 
 const app = express();
 const server = http.createServer(app);
+const FRONTEND_URL = process.env.FRONTEND_URL || "http://localhost:3000";
 const io = new Server(server, {
-  cors: { origin: "http://localhost:3000", methods: ["GET", "POST"] },
+  cors: { origin: FRONTEND_URL, methods: ["GET", "POST"] },
 });
 const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
 
@@ -33,7 +34,7 @@ mongoose.connect(process.env.MONGO_URI, {
   .catch((err) => console.error(err));
 
 app.use(cors({
-  origin: ["http://localhost:3000", "http://localhost:3001"],
+  origin: ["http://localhost:3000", "http://localhost:3001", FRONTEND_URL],
   methods: ["GET", "POST", "OPTIONS", "PUT", "PATCH", "DELETE"],
   allowedHeaders: ["Content-Type", "Authorization"],
 }));
@@ -532,7 +533,7 @@ Begin the interview by greeting the candidate. Clearly state:
 
 Say it as: "This is a ${level} level interview for the ${role} position at ${company}."
 
-Ask how they are doing. Keep it under 3 sentences.
+Ask how they are doing. Keep it under 3 lines.
 
 Do not introduce yourself as the candidate.
 Do not make up extra information about the company.
@@ -814,7 +815,7 @@ Your task:
 - Consider the candidate's last response and keep the conversation flowing naturally.
 - DO NOT say phrases like “Here's your next question” or “Let’s begin with…”
 - DO NOT give feedback or commentary. Only ask the question.
-- Keep the question concise (1–2 sentences). It should sound like it’s from a real human interviewer.
+- Keep the question concise (1–2 lines). It should sound like it’s from a real human interviewer.
 `,
         },
         ...messages,
@@ -858,7 +859,7 @@ Overall Feedback: A short paragraph summarizing the strengths and areas for impr
 IMPORTANT: Provide a concise rating and specific suggestion for this response:
 
 Rating: [Choose from: Excellent, Good, Satisfactory, Needs Improvement, Poor]
-Suggestion: [2-3 sentences with specific, actionable advice for improvement]
+Suggestion: [2-3 lines with specific, actionable advice for improvement]
 
 Model Answer: [Provide a comprehensive, well-structured response]
 Improvement Suggestions: [List 2-3 specific ways to improve]
@@ -910,13 +911,80 @@ app.get("/api/my-interviews", authenticateToken, async (req, res) => {
   }
 });
 
-// Save per-question evaluation (duplicate-safe version already exists above)
-// ... (rest of your routes are unchanged) ...
+// Save per-question evaluation
+app.post("/api/save-question-evaluation", authenticateToken, async (req, res) => {
+  try {
+    const { interviewId: interviewIdFromBody, question, userResponse, evaluation } = req.body;
+    const userId = req.user.userId;
+
+    if (!question || !userResponse || !evaluation) {
+      return res.status(400).json({ message: "question, userResponse, and evaluation are required" });
+    }
+
+    // Resolve interview to attach to (fallback to latest if id not provided)
+    let interview;
+    if (interviewIdFromBody) {
+      interview = await Interview.findOne({ _id: interviewIdFromBody, userId });
+    }
+    if (!interview) {
+      interview = await Interview.findOne({ userId }).sort({ date: -1 });
+    }
+    if (!interview) {
+      return res.status(404).json({ message: "Interview not found" });
+    }
+
+    // Try to find existing transcript for this interview
+    let transcript = await Transcript.findOne({ interviewId: interview._id, userId });
+
+    // If not found, create one from Interview details (upsert behavior)
+    if (!transcript) {
+      transcript = new Transcript({
+        interviewId: interview._id,
+        userId,
+        company: interview.company,
+        role: interview.role,
+        level: interview.level,
+        transcriptData: [],
+        analysis: {},
+        questions: [],
+      });
+    }
+
+    transcript.questions.push({
+      question,
+      userResponse,
+      evaluation: {
+        rating: evaluation.Rating || "",
+        suggestion: suggestion,
+        correctness: evaluation.Correctness?.score || "",
+        clarityStructure: evaluation["Clarity & Structure"]?.score || "",
+        completeness: evaluation.Completeness?.score || "",
+        relevance: evaluation.Relevance?.score || "",
+        confidenceTone: evaluation["Confidence & Tone"]?.score || "",
+        communicationSkills: evaluation["Communication Skills"]?.score || "",
+        overallFeedback: evaluation["Overall Feedback Summary"] || "",
+        modelAnswer: evaluation["Model Answer"] || "",
+        improvementSuggestions: evaluation["Improvement Suggestions"] || "",
+        keyPoints: evaluation["Key Points"] || "",
+      },
+    });
+
+    await transcript.save();
+    res.json({ message: "Question evaluation saved successfully", interviewId: interview._id });
+  } catch (err) {
+    console.error("❌ Save question evaluation failed:", err);
+    res.status(500).json({ message: "Failed to save question evaluation" });
+  }
+});
+
+
+
 
 const PORT = process.env.PORT || 5002;
 server.listen(PORT, () =>
   console.log(`🚀 Server running on port ${PORT}`)
 );
+
 
 /*
 -------------------------

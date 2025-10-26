@@ -439,7 +439,7 @@ export default function MockInterviewPage() {
       const scoreLines = categories
         .map((key) => {
           const val = structuredEvaluation[key];
-          let scoreStr = typeof val === "string" ? val : val?.score;
+          const scoreStr = typeof val === "string" ? val : val?.score;
           const match = scoreStr?.match(/(\d+(?:\.\d+)?)\/10/);
           return match ? `${key}: ${match[1]}/10` : `${key}: 0/10`;
         })

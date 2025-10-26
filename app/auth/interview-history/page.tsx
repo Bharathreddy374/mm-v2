@@ -78,6 +78,74 @@ export default function InterviewHistory() {
     );
   };
 
+  // Parse a numeric score from various possible formats.
+  // Handles:
+  // - EvaluationField objects (uses .score)
+  // - Strings like "4", "4.5", "4/5", "80%"
+  // Returns number (attempted on a 0-5 scale) or null if unparsable.
+  const parseNumericScore = (field?: string | EvaluationField): number | null => {
+    if (!field) return null;
+    const raw = typeof field === "string" ? field : field.score;
+    if (raw === undefined || raw === null) return null;
+    const s = String(raw).trim();
+
+    // Fraction like 4/5
+    const frac = s.match(/^(\d+(?:\.\d+)?)\s*\/\s*(\d+(?:\.\d+)?)/);
+    if (frac) {
+      const num = parseFloat(frac[1]);
+      const den = parseFloat(frac[2]);
+      if (!isNaN(num) && !isNaN(den) && den !== 0) {
+        // Normalize to a 0-5 scale if denominator isn't 5
+        return (num / den) * 5;
+      }
+    }
+
+    // Percentage like 80%
+    const pct = s.match(/^(\d+(?:\.\d+)?)\s*%$/);
+    if (pct) {
+      const val = parseFloat(pct[1]);
+      if (!isNaN(val)) return (val / 100) * 5;
+    }
+
+    // Plain number
+    const numMatch = s.match(/^(\d+(?:\.\d+)?)/);
+    if (numMatch) {
+      const v = parseFloat(numMatch[1]);
+      if (!isNaN(v)) return v;
+    }
+
+    return null;
+  };
+
+  // Compute the overall score by summing the six key categories and dividing by 6.
+  // If a field is missing or unparsable, it is treated as 0 (per user's requirement to divide by 6).
+  const computeOverallScore = (analysis?: EvaluationAnalysis): string => {
+    if (!analysis) return "N/A";
+    const keys = [
+      "Correctness",
+      "Clarity & Structure",
+      "Completeness",
+      "Relevance",
+      "Confidence & Tone",
+      "Communication Skills",
+    ];
+
+    let sum = 0;
+    const total = keys.length;
+
+    keys.forEach((k) => {
+      const val = analysis[k as keyof EvaluationAnalysis] as string | EvaluationField | undefined;
+      const parsed = parseNumericScore(val);
+      if (parsed !== null) sum += parsed;
+      // if parsed is null, treat as 0 per instruction
+    });
+
+    const avg = sum / total;
+    if (!isFinite(avg) || isNaN(avg)) return "N/A";
+    // Show average on a 0-5 scale with two decimals
+    return `${avg.toFixed(2)} / 5`;
+  };
+
   const filterQuestions = (questions?: QuestionEvaluation[]) => {
     return (
       questions?.filter(
@@ -138,7 +206,7 @@ export default function InterviewHistory() {
             >
               <p className="font-semibold text-gray-800">{item.company}</p>
               <p className="text-sm text-gray-600">
-                {item.role} — Level {item.level}
+                {item.role} — Level : {item.level}
               </p>
               <p className="text-xs text-gray-500">
                 {new Date(item.createdAt).toLocaleString()}
@@ -185,14 +253,14 @@ export default function InterviewHistory() {
                           </div>
 
                           {/* Detailed Scores */}
-                          <div className="space-y-2">
+                          {/* <div className="space-y-2">
                             <p className="text-sm"><strong>Correctness:</strong> {question.evaluation.correctness}</p>
                             <p className="text-sm"><strong>Clarity:</strong> {question.evaluation.clarityStructure}</p>
                             <p className="text-sm"><strong>Completeness:</strong> {question.evaluation.completeness}</p>
                             <p className="text-sm"><strong>Relevance:</strong> {question.evaluation.relevance}</p>
                             <p className="text-sm"><strong>Confidence:</strong> {question.evaluation.confidenceTone}</p>
                             <p className="text-sm"><strong>Communication:</strong> {question.evaluation.communicationSkills}</p>
-                          </div>
+                          </div> */}
                         </div>
 
                         {/* Additional Feedback */}
@@ -239,8 +307,9 @@ export default function InterviewHistory() {
                       <p><strong>Relevance:</strong> {renderScore(selected.analysis.Relevance)}</p>
                       <p><strong>Confidence & Tone:</strong> {renderScore(selected.analysis["Confidence & Tone"])}</p>
                       <p><strong>Communication Skills:</strong> {renderScore(selected.analysis["Communication Skills"])}</p>
+                      <p><strong>Overall Rating:</strong> {selected.analysis.Rating || computeOverallScore(selected.analysis)}</p>
                     </div>
-                  </div>
+                  </div>.
 
                   {/* Model Answer and Improvements Section */}
                   {(selected.analysis["Model Answer"] || selected.analysis["Improvement Suggestions"] || selected.analysis["Key Points"]) && (
