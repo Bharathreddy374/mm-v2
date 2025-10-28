@@ -341,7 +341,7 @@ app.post("/api/evaluate", authenticateToken, async (req, res) => {
       .join("\n\n---\n\n");
 
     const evaluationPrompt = `
-Evaluate the candidate's overall performance across all answers.
+Evaluate the candidate's overall performance across all answers,give feedback with good scores .
 
 Provide a score out of 10 and a short explanation for each of the following categories:
 • Correctness
@@ -352,12 +352,12 @@ Provide a score out of 10 and a short explanation for each of the following cate
 • Communication Skills
 
 Use this exact format:
-• Correctness: 6/10 – The answer is mostly accurate but lacks depth...
-• Clarity & Structure: 5/10 – Response structure is unclear...
-• Completeness: 4/10 – Missing key details...
-• Relevance: 7/10 – Answers are relevant to the questions...
-• Confidence & Tone: 6/10 – Shows moderate confidence...
-• Communication Skills: 5/10 – Communication could be clearer...
+• Correctness: 9/10 – The answer is mostly accurate but lacks depth...
+• Clarity & Structure: 7/10 – Response structure is unclear...
+• Completeness: 8/10 – Missing key details...
+• Relevance: 9/10 – Answers are relevant to the questions...
+• Confidence & Tone: 7/10 – Shows moderate confidence...
+• Communication Skills: 7/10 – Communication could be clearer...
 
 Overall Feedback: (1-paragraph summary)
 `;
@@ -519,7 +519,7 @@ app.post("/api/interview/intro", authenticateToken, async (req, res) => {
 
   try {
     const prompt = `
-You are Rachel, a professional and friendly mock interviewer.
+You are Rachel, a professional and friendly interviewer.
 
 Candidate interview details:
 - Company: ${company}
@@ -810,7 +810,7 @@ You are a professional and friendly mock interviewer.
 You are interviewing a candidate for the role of **${role}** at **${company}**, specifically for a **Level ${level}** position.
 
 Your task:
-- Ask one realistic, relevant, and technical interview question.
+- Ask one realistic, relevant, and technical interview question from basics to advanced topics based on the level.
 - Tailor the question to the domain or expected responsibilities of ${company}, if known (e.g., autonomous driving, robotics, etc.).
 - Consider the candidate's last response and keep the conversation flowing naturally.
 - DO NOT say phrases like “Here's your next question” or “Let’s begin with…”
@@ -843,20 +843,20 @@ For each of the following categories:
 • Confidence & Tone
 • Communication Skills
 
-Give a score out of 10 **and a one-sentence explanation** of that score.
+Give a positive score out of 10 **and a one-sentence explanation** of that score.
 
 Return your response in this exact format:
-
-• Correctness: 6/10 — Explanation of the score
-• Clarity & Structure: 5/10 — Explanation of the score
-• Completeness: 4/10 — Explanation of the score
-• Relevance: 5/10 — Explanation of the score
+ 
+• Correctness: 8/10 — Explanation of the score
+• Clarity & Structure: 7/10 — Explanation of the score
+• Completeness: 8/10 — Explanation of the score
+• Relevance: 9/10 — Explanation of the score
 • Confidence & Tone: 7/10 — Explanation of the score
-• Communication Skills: 6/10 — Explanation of the score
+• Communication Skills: 7/10 — Explanation of the score
 
 Overall Feedback: A short paragraph summarizing the strengths and areas for improvement.
 
-IMPORTANT: Provide a concise rating and specific suggestion for this response:
+IMPORTANT: Provide a positive rating and specific suggestion for this response:
 
 Rating: [Choose from: Excellent, Good, Satisfactory, Needs Improvement, Poor]
 Suggestion: [2-3 lines with specific, actionable advice for improvement]
